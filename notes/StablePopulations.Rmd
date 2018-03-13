@@ -1,0 +1,110 @@
+---
+title: "Stable Populations"
+author: "Neal Marquez"
+date: "March 5, 2018"
+output: html_document
+---
+
+## Stable Population Basics  
+ - Recall that the Growth rate of location is reffered to as $R$  
+ - $\int f(x) \ell (x) \text{exp}(-Rx) dx = 1$  
+ - NRR $= \text{exp}(R \mu)$  
+ - $\therefore r = \frac{\text{log}(\text{NRR})}{\mu}$  
+ - $\mu$ is the mean age of child bearing $\approx$ generation length  
+
+### Matrix Perspective  
+ - Take 20 projection steps at 5 years each for a forecast of 100 years  
+ - $K(20) = A^{20} K(0)$  
+ - $K(20) = \underbrace{A^{20}}_{\text{Leslie Matrix}} K(0)$  
+ - $K(20) = \underbrace{\text{exp}(100R)}_{\text{scalar}} \underbrace{K(0)}_{vector}$  
+ - $\underbrace{A}_{\text{Matrix}} \underbrace{\mu}_{\text{vector}} = \underbrace{\lambda}_{\text{Constant}} \underbrace{\mu}_{\text{vector}}$  
+ - $\lambda$ is the leading eigenvalue  
+ - $\mu$ is the associated eigenvector  
+ - $\lambda = \text{exp}(mR)$  
+ - $R = \frac{\text{log}(\lambda)}{m}$  
+ - $m$ is the length of the projection step  
+ 
+### Renewel Process in Stable Population  
+ - $B(t) = B(t-x) \text{exp}(Rx) = B(0) \text{exp}(Rt)$  
+ - $B(t-x) = \frac{B(t)}{B(0)\text{exp}(Rt)}\text{exp}(-Rx)$  
+ - $B(t-x) = B(0)\text{exp}(R(t-x))$  
+ - $K(t,x) = $ Pop age $x$ at time $t$.  
+ - $K(t,x) = B(t-x) \ell (x)$  
+ - $K(t,x) = B(t) \text{exp}(-Rx) \ell (x)$  
+
+### What is the Proportion of People age $x$ at time $t$ for stable pop?  
+
+$$
+\begin{align*}
+\frac{K(x,t)}{\sum_x K(x,t)} & = \frac{K(x,t)}{\text{Pop}(t)} \\
+& = \frac{B(t)\text{exp}(-Rx) \ell (x)}{\text{Pop}(t)} \\
+& = \text{CBR}(t)\text{exp}(-Rx) \ell (x) \\
+& = \frac{B(t)\text{exp}(R(t-x)) \ell (x)}{\text{Pop}(t)\text{exp}(Rt)} \\
+& = \text{CBR}(t) \frac{\text{exp}(Rt)\text{exp}(-Rx) \ell (x)}{\text{exp}(Rt)} \\
+& = \text{CBR}(t)\text{exp}(-Rx) \ell (x) \\
+\text{CBR  is stable in stable Population} \\
+\text{CBR}(t) & = \text{CBR}(0) = \text{CBR} \\
+\text{In a stable population } \\
+C(x) & = \frac{K(x,t)}{\text{Pop}(t)} = \text{CBR}(t)\text{exp}(-Rx) \ell (x) \\
+\int_0^{\infty} C(x) dx & = 1 \\
+\int_0^{\infty} \text{CBR} dx & = 1 \\
+\text{CBR} & = b \\
+\int_0^{\infty} b \text{exp}(-Rx) \ell (x) dx & = 1 \\
+b \int_0^{\infty} \text{exp}(-Rx) \ell (x) dx & = 1 \\
+b & = \frac{1}{\int_0^{\infty} \text{exp}(-Rx) \ell(x) dx} \\
+\text{What happens if R = 0?} \\
+b & = \frac{1}{\int_0^{\infty} \ell(x) dx} \\
+& = \frac{1}{e_0} \\
+1 & = b e_0 ~\text{ Oh Shit!}\\
+b e_0 &= \frac{\int_0^{\infty} \ell (x) dx}{\int_0^{\infty} \text{exp} (-Rx) \ell (x) dx} \\
+\text{if} & \dots R > 0 \\
+\text{then} & \int_0^{\infty} \ell (x) dx > \int_0^{\infty} \text{exp} (-Rx) \ell (x) dx \\
+\text{then} & \dots b e_0 > 1
+\end{align*}
+$$
+
+## Applications  
+###Analyzing the Dependancy Ratio  
+$$
+\begin{align*}
+\alpha & = \frac{\text{# of People 65 +}}{\text{# of people 20-65}} \\
+& = \frac{b \int_{65}^{\infty}\text{exp}(-Rx) \ell (x) dx}{b \int_{65}^{\infty}\text{exp}(-Rx) \ell (x) dx} \\ 
+& = \text{log}(\int_{65}^{\infty}\text{exp}(-Rx) \ell (x) dx) -
+    \text{log}(\int_{20}^{65}\text{exp}(-Rx) \ell (x) dx) \\
+\frac{d ~ \text{log}(\alpha)}{dR} & =
+    \frac{-\int_{65}^{\infty}x~\text{exp}(-Rx) \ell (x) dx}{\int_{65}^{\infty}\text{exp}(-Rx) \ell (x) dx} -
+    \frac{-\int_{20}^{65}x~\text{exp}(-Rx) \ell (x) dx}{\int_{20}^{65}\text{exp}(-Rx) \ell (x) dx} \\
+& \approx \Big[ -\overline{X}_{65+}\Big] - \Big[ -\overline{X}_{20-64}\Big] \\
+& = \overline{X}_{20-64} - \overline{X}_{65+} \\
+& = \frac{d \text{log}(\alpha)}{dR} = \frac{\frac{d \alpha}{R}}{\alpha} \\
+& = \frac{d \alpha}{\alpha} = \Big( \overline{X}_{20-64} - \overline{X}_{65+} \Big) dR \\
+\end{align*}
+$$
+
+ - Suppose $\overline{X}_{20-64} = 40$ and $\overline{X}_{65+} = 70$  
+ - Supoose now $R$ goes from $.02$ to $.01$ or $dR=-.01$  
+ - Then $\frac{d \alpha}{\alpha} = (40 - 70)(-.01)=.3$  
+ - If $R$ decreases by 1% the the old age dep ratio increases by 30%  
+ 
+### What is the Probability that a woman of age x has a living mother?  
+ - What information do we need?  
+   - # of living mothers of all cohorts who gave birth to girls who are now x years old  
+   - $\int_\alpha^\beta \underbrace{B(t-a-x) \ell(x) f(x)}_{\text{Daughters From Mothers age x}} \underbrace{\frac{\ell (x+a)}{\ell(x)}}_{\text{S(x) of mothers}} \underbrace{\ell (a)}_{\text{S(x) of children}} dx$  
+   - # of daughters born at time t-a and survive to time t  
+   - $B(t-a) \ell(a)$  
+   - Average number of mothers per daughter at time t  
+   - $\int_\alpha^\beta B(t-a-x) \ell(x) f(x) \frac{\ell (x+a)}{\ell(x)}\ell (a) (B(t-a) \ell(a))^{-1}dx$  
+   - Recall that $B(t-a) = \text{exp}(-Rx)$  
+   - $M_1 (a) = \int_\alpha^\beta \frac{\ell (x+a)}{\ell (x)} \text{exp}(-Rx) \ell (x) f(x) dx$  
+   
+### Alternative approach based on conditional probability  
+ - Probability that mother is alive = $\frac{\ell (x+a)}{\ell (x)}$  
+ - $M(a) = \int_\alpha^\beta \frac{\ell (x+a)}{\ell (x)} p(\text{Mother Gave birth at age }x) dx$  
+ - $p(\text{Mother Gave birth at age }x) = \text{exp}(-Rx) \ell (x) f(x)$  
+ - Recall that we know that sums to one from Lotaka's Equation.
+ 
+### Application to the next generation  
+ - Probability of having a living grandmother for a girl of age $a$  
+ - If mom gave birth at age $x$ then  
+ - p(Grandma is alive) = $M_1(x+a)$  
+ - $M_2(a) = \int_\alpha^\beta M_1(x+a) \text{exp}(-Rx) \ell(x) f(x) dx$  

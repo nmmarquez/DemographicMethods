@@ -1,0 +1,69 @@
+---
+title: "Essential Demography HW 4 Questions"
+author: "Neal Marquez"
+date: "February 5, 2018"
+output:
+  html_document: default
+---
+
+```{R Load, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(pander)
+```
+
+1. Table 3.8 shows hazard rates for the cohort of British women born in 1910 whose oldest members are now centenarians. Fit a Gompertz model to these hazards, estimating the $\alpha$ and $\beta$ parameters. How well does the Gompertz prediction for $h_{90}$ fit the recorded value of `0.167692`?
+
+```{R}
+hx <- c(0.004631, 0.010672, 0.025325, 0.063001)
+years <- 5:8 * 10
+
+lm1 <- lm(log(hx) ~ years)
+
+alpha_ <- exp(lm1$coefficients[[1]]) 
+beta_ <- lm1$coefficients[[2]]
+p90 <- .167692
+p90hat <- alpha_*exp(beta_ * 90)
+perror <- (p90 - p90hat) / p90
+```
+
+The fitted values of the paraemters for a Gompertz model to the data observed are `r round(alpha_, 6)` and `r round(beta_, 6)` for $\alpha$ and $\beta$ respectively. The estimated value at year 90 then is `r round(p90hat,6)` making the estimate off by about `r round(perror,4) * 100` percent of the actual value.
+
+2. A population maintains itself in a stationary state with the addition of 1,000 births and 200 immigrants aged exactly 20 each year. Write down a formula for the size of this population. One or more lifetable quantities may occur in your formula.
+
+$$
+1000 e_0 + 200 e_{20} = K 
+$$
+
+3. Table 4.6 shows estimates of cohort age-specific fertility rates and person-years lived for the cohort of Swedish women born in 1800. The radix is 1,000. Find the cohort NRR, TFR, and GRR. How close is the GRR to the NRR?
+
+```{R}
+DF <- data.frame(
+    x=3:9 * 5, 
+    nfx=c(.0122, .1038, .2211, .2408, .2131, .1136, .0182),
+    nLx=c(3134, 3036, 2930, 2808, 2663, 2509, 2351))
+
+fab <- .4886
+TFR <- sum(5 * DF$nfx)
+NRR <- (sum(DF$nLx * DF$nfx) * fab / 1000) %>% round(4)
+GRR <- (TFR * fab) %>% round(4)
+```
+
+The GRR,`r GRR`, is almost 1 greater than the NRR `r NRR`. We would expect the GRR to be higher as it is the one sex version of TFR which does not take into account mortality while the NRR does incorporate a crude measure of mortality into its estimate.
+
+4. Table 4.7 shows women by parity at ages 45 to 50 in the whole sample from the 2004 DHS in Malawi discussed in Section 4.4. Calculate counts of women at and above each parity along with the values of PPR(j) for all j.
+
+```{R}
+data.frame(
+    parity=0:15,
+    women= c(17, 18, 44, 45, 48, 62, 107, 95, 96, 92, 69, 47, 22, 5, 2, 1)
+) %>%
+    mutate(atandabove=rev(cumsum(rev(women)))) %>%
+    mutate(pprj=lead(atandabove)/atandabove) %>%
+    mutate(pprj=ifelse(is.na(pprj), 0, pprj)) %>%
+    pander
+```
+
+5. Please read the paper titled “What Demographers can Learn from Fruit Fly Actuarial Models and Biology” by James Carey (1997). Briefly summarize (max 250 words) the key points of the paper and indicate the two most important things that you have learned by reading this paper.
+
+James R. Carey that a great deal of Demography can be better understood and tested if we take a biological lens to a particular problem. As a case study he presents an experiment involving recording the time of death of an experimental cohort of fruit flies, 1.2 million in total, and use this data to test basic assumptions about human mortality to see if it applies to other species. The idea is that if this information is applicable to more species, than, we may infer that their is some evolutionary biological underpinning to these mechanisms. Carey tests three assumptions of human mortality, the gompertz curve of mortality, lower rates of female rates of mortality, and lower rates of mortality among individuals at higher ages. Carey find that most of these assumptions of human mortality do not hold for fruit flies, or when they do there are caveats attached to them, but still argues in favor of the benefits of taking a more biological approach to demography. Reading this paper gives gave me a better understanding of the approach that many demographers take to incorporating rules into their theoretical framework. This can have benefits and drawbacks depending on the application. For instance, when considering fertility patterns among developing countries we often take into a theoretical model of the fertility transition and note that it fits historical data quite well. Nevertheless this model has not captured recent fertility patterns in locations such as sub-Saharan Africa. 

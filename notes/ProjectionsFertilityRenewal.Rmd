@@ -1,0 +1,122 @@
+---
+title: "Projections"
+author: "Neal Marquez"
+date: "February 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+library(dplyr)
+library(ggplot2)
+```
+
+# Review Homework 
+
+$$
+K(x,t) = \text{Population of females age }x\text{ at time } t\\
+K(0,t) = B(t) \\
+K(x, t) = \text{survivors of }K(0, t-x) = B(t-x) \\
+K(x, t) = K(0, t-x) \ell(x, t-x) = B(, t-x) \ell(x, t-x) \\
+K(x,t) \ell(x,t-x) = \text{Daughters born in year to women of age x} \\
+B(t) = \sum_x K(x, t) \ell(x, t-x) \\
+= \sum_x B(t-x) \ell(x, t-x) f(x,t-x) \\
+\text{in continous form...} \\
+= \int_0^{\infty} B(t-x) \ell(x, t-x) f(x,t-x) dx\\
+\text{if}
+\ell(x, t-x) = \ell(x) \\
+f(x, t-x) = f(x) \\
+= \int_0^{\infty} B(t-x) \ell(x) f(x) dx\\
+B(t) = B(t-x)e^{Rx} \\
+B(t-x) = B(t)e^{-Rx} \\
+B(t) = \int_0^{\infty} B(t)e^{-Rx}\ell(x)f(x)dx\\
+1 = \underbrace{\int_0^{\infty} e^{-Rx}\ell(x)f(x)dx}_{\text{Lotka's Equation}}
+$$
+
+For more on the lotka equation see [here](https://en.wikipedia.org/wiki/Euler%E2%80%93Lotka_equation).
+
+# Fertility Measures
+
+Period fertility is often noted as$~_nF_x$ while cohort fertility is $~_nf_x$.
+
+$$
+~_nF_x = \frac{~_nB_x}{PeriodPYL} \\
+~_nf_x = \frac{~_nB_x}{CohortPYL}
+$$
+
+$$
+\text{TFR} = \sum~_mF_x n \\
+\text{GRR} = \text{TFR} f_{\text{fab}}\\
+\text{NRR} = \frac{\sum~_mF_x~_nL_x f_{\text{fab}}}{\ell_0}
+$$
+
+If we have a NRR of 1.45 then for each generation there are 1.45 times as many daughters as mothers. If we have an additional component $G$ the generation length or $P(t+G)=P(t)*\text{NRR}$. It then follows
+
+$$
+P(t+G)=P(t)*\text{NRR} \\
+\text{NRR} = \frac{P(t+G)}{P(t)} \\
+\text{log}\Big(\text{NRR}\Big) = \text{log}\Big(\frac{P(t+G)}{P(t)}\Big) \\
+\frac{1}{G}\text{log}\Big(\text{NRR}\Big) = 
+    \frac{1}{G}\text{log}\Big(\frac{P(t+G)}{P(t)}\Big) \\
+= \frac{\text{log}\big(P(t+G)\big) - \text{log}\big(P(t)\big)}{G} \\
+= R \\
+\approx \frac{\text{log}(\text{NRR})}{\mu}
+$$
+
+Where $\mu$ is the mean age at child bearing.
+
+$$
+\mu = \frac{\sum x f(x) \ell(x)}{\sum f(x) \ell(x)} \\
+\text{Or in its continous form...} \\
+\mu = \frac{\int x f(x) \ell(x) dx}{\int f(x) \ell(x) dx} \\
+$$
+
+## Tempo and Quantum
+
+Consider the standard average age at childbearing: $A^s$.  
+Contrast that with the average age of childbearing for some year $t$: $A(t)$
+
+We want to shift births such that they match the $A^s$.  
+
+Births at time $t$ are shifted to $t - (A(t) - A^s)$  
+Births at time $t+T$ are shifted to $t+T - (A(t+T) - A^s)$
+
+The new artificial width of the interval is
+$$
+= T - A(t+T) + A^s -t + A(t) - A^s \\
+= T - A(t+T) + A(t) \\
+= T - (A(t+T) - A(t)) \\
+\text{Standardized TFR is then } \\
+\text{TFR}^s = \frac{\text{TFR}(t)}{1 - \frac{A(t+T) - A(t)}{T}} \\
+= \frac{\text{TFR}(t)}{1-\underbrace{A'(t)}_{\text{First derivative of mean age at childbearing}}}
+$$
+
+## Age Standardize
+
+```{R}
+rm()
+DFLT <- data.frame(x=c(0, seq(15, 50, 5)), n=c(15, rep(5, 7), Inf)) %>%
+    mutate(mfx=c(0, .008, .056, .139, .118, .050, .012, 0, 0)) %>%
+    mutate(mkx=c(882, 270, 268, 265, 232, 209, 182, 169, 574)) %>%
+    mutate(Babies=mfx*mkx)
+DFLT
+```
+
+## Age Standardized General Approach 
+
+$$
+\text{GDR} = \frac{D}{K} = \sum \frac{~_nf_x}{~_nK_x} \frac{~_nK_x}{K_{\text{TOT}}} \\
+= \sum ~_nm_x ~_nL_x
+$$
+
+## Decomposition
+
+$$
+\underbrace{\Delta \text{CR}}_{\text{Diff in Crude Rate}} =
+    \Delta\text{Composition}\times\text{Average Rate Weight} + 
+    \Delta\text{Rate}\times\text{Average Rate Composition Weight} \\
+\therefore \\
+\Delta \text{CR} = \text{Composition} \times \text{Rate} \\
+CR^1 - CR^2 = \sum[(C_i^1 - C_i^2)(\frac{R_i^1 - R_i^2}{2})] + 
+    \sum[(R_i^1 - R_i^2)(\frac{C_i^1 - C_i^2}{2})]
+$$

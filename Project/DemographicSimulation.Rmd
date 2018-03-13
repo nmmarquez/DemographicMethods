@@ -1,0 +1,200 @@
+---
+title: "Demographic Simulation"
+author: "Neal Marquez"
+date: "March 10, 2018"
+---
+
+## Introduction
+
+The task of demographic simulation has many applications in the fields of demography, anthropology, and actuary sciences. Demographic simulation has been used to validate life table fitting models[1], to project future populations based off a set of assumptions of changes in demographic rates[2], and to estimate past populations based off of known thresholds[3]. In spite of these demands there has not been a standard set of tools that researchers can use in order to simulate populations from continuous models of demographic phenomena such as mortality, fertility, and migration. The package `R` package `DemographicSimulation` attempts to overcome this by offering parametric and non-parametric fits to the inverse survival rates observed in populations.
+
+## Current Tools for Demographic Simulation in R
+
+Perhaps the most ubiquitous tool for tackling demographic problems in the `R` programming language has been Rob J Hyndman’s package `demography`. The `demography` package contains many of the essential models and algorithms that a demographic researcher often uses to tackle such problems as model life table fitting, mortality rate estimation, demographic forecasting, and simulation of populations. In the following block of code demographic data from Australia concerning female/male mortality, migration, and fertility rates are cleaned, modeled, projected into the future, and then simulated in order to get prediction intervals for future populations. We use data from Australia that has been curated by Hyndman however the package also offers an interface to the Human Mortality Database that we can use to retrieve data to use for simulation purposes.
+
+```{R demoDemography}
+library(demography)
+library(addb) # devtools::install_github("robjhyndman/addb")
+
+# Construct data objects
+mort.sm <- smooth.demogdata(set.upperage(extract.years(australia, 1950:2002), 100))
+fert.sm <- smooth.demogdata(extract.years(aus.fertility, 1950:2002))
+aus.mig <- netmigration(set.upperage(australia,100), aus.fertility, mfratio=1.0545)
+# Fit models
+mort.fit <- coherentfdm(mort.sm)
+fert.fit <- fdm(fert.sm)
+mig.fit <- coherentfdm(aus.mig)
+# Produce forecasts
+mort.fcast <- forecast(mort.fit)
+fert.fcast <- forecast(fert.fit)
+mig.fcast <- forecast(mig.fit)
+# Simulate
+aus.sim <- pop.sim(mort.fcast, fert.fcast, mig.fcast, australia)
+```
+
+The end result is a set of age and year specific population sizes that are based off of the age groups that had been provided in the initial data structure. Other methods for forecasting data exist within the package such as the Lee-Carter model however, all models operate on discrete units of age groups and use models that are optimized for such data.
+
+## Demographic Simulation Package
+
+The `DemographicSimulation` package narrows the scope of its focus from Hyndman’s package to just simulating demographic data, in its current state it only simulates mortality data, however it does so using continuous models, leveraging information about the distribution and “rules” of demographic data in order to return individual level information about an individual's demographic experiences. I will demonstrate in the following sections how we can simulate parametric and non-parametric models of mortality using data on the inverse survival function $F(x)$.
+
+### Mortality Data and the Inverse Survival Function
+
+In order to simulate mortality data we will rely on information that is provided to us by way of the inverse Survival Function $F(x)$, . The inverse survival function can be viewed as the cumulative distribution of the age of death distribution of a particular population. It represents the process of taking a near infinite number of individuals from the same underlying population and measuring the time at which death occurs for all individuals and tracking the percentage of individuals who have died along the way. For research purposes what defines a true underlying population is dictated by the research question and although we never observe a near infinite number of people we can estimate the function using observed data. Attached to `DemographicSimulation` package is a set of mortality estimates produced by the Global Burden of Disease 2016 project for 30 countries between the years 1970 and 2016, including estimates of$~_nq_x$, the probability of death that between age $x$ and $x+n$ given that you survived to age $x$, that were used to calculate $F(x)$ according to the mods presented in Watcher[4]. Below are the plots of the estimated inverse Survival Functions for four countries in 2016.
+
+
+```{R plotFx, warning=FALSE, message=FALSE, echo=FALSE}
+library(dplyr)
+library(ggplot2)
+# devtools::install_github("nmmarquez/DemographicSimulation")
+library(DemographicSimulation)
+
+locs <- c("Japan", "United States", "Haiti", "Kenya")
+DFDeath %>% filter(sex=="Both" & year==2016 & location %in% locs) %>%
+    ggplot(aes(x=age_end, y=Fx, color=location, group=location)) +
+    geom_line() +
+    scale_color_discrete(name="Location") +
+    theme_classic() +
+    labs(x="Age", y="F(x)", title="Inverse Survival Functions: 2016")
+```
+
+These differences in the inverse survival curve correspond to very different lived demographic experiences and one way of distilling this information down is to express it in terms of Life Expectancy, which in this case is the mean of the distribution generated from the inverse Survival Function, if we treat that Function as the Cumulative Distribution Function. Another way of saying this is that if people experienced the age specific mortality rates observed from a particular population, at what age would they die on average[4]. For Haiti life expectancy is close to 63 years while in the United states it is around 78 years in 2016[5]. Another difference that we can observe from these graphs is the difference in their early age starting points. Child mortality greatly differs from country to country and its relative hazard is greater than most other age groups. This is reflected in estimates of quantities such as$~_5q_0$. For example $~_5q_0$ in Japan is near 0.26% while in Kenya it is nearly 4.34% [5]. If we are interested in simulating populations that resemble particular countries from time points between 1970 and 2016 we can directly do so using the `DemographicSimulation` package. The simulation functions either take two vectors, one representing age(in increasing order), and another representing F(x), corresponding to the age value in the first vector, or it can also take the name of a country, a year, and the sex to pull data from provided in the `DFDeath` dataframe in the package.
+
+## Simulating data from Non parametric Models
+
+The first set of models that we will discuss are a class of non-Parametric spline models that are used to fit F(x). Knots are placed at the points at which data are observed and a spline model with strictly positive derivatives is fit to the data in order to fit the survival function such that it is a vaild CDF for age of death data, strictly increasing as age increases and only produces values between zero and one. Because of this approach we also calculate the derivative of the spline function and can calculate the hazard function from our fitted model, which is the first derivative of the CDF, the probability density function or PDF, over the survival function $S(x)$.
+
+$$
+h(x) = \frac{F’(x)}{S(x)}
+$$
+
+```{R simNonPram}
+# run plotting and simulation code
+library(DemographicSimulation)
+library(dplyr)
+library(ggplot2)
+set.seed(123)
+# Generate the demographic functions for Mexico 1980
+MX2016F <- GenPopFuncs(location_="Mexico", year_=1980, sex_="Both")
+
+# plot some of the functions
+data.frame(Age=seq(.01, 120, .01)) %>%
+    mutate(CDF=MX2016F$CDF(Age)) %>%
+    ggplot(aes(x=Age, y=CDF)) +
+    geom_line() +
+    theme_classic() +
+    labs(title="Inverse Survival Function of Mexico Mortality: 1980", x="Age", y="F(x)")
+
+data.frame(Age=seq(.1, 100, .005)) %>%
+    mutate(Hazard=MX2016F$Hxfunc(Age)) %>%
+    ggplot(aes(x=Age, y=Hazard)) +
+    geom_line() +
+    theme_classic() +
+    coord_trans(y="log") +
+    labs(title="Hazard Function of Mexico Mortality: 1980", x="Age", y="Hazard")
+
+m <- 10000
+n <- 100
+system.time(simDeaths <- lapply(1:n, function(y) MX2016F$simPop(m, 6)))
+
+# distribution of age at death for simulated population
+data.frame(Age=simDeaths[[1]]) %>%
+    ggplot(aes(x=Age)) +
+    geom_density() +
+    theme_classic() +
+    labs(y="Density", title="Distribution of Simulated Deaths")
+
+MXDeath <- DFDeath %>%
+    filter(location=="Mexico" & year==1980 & sex=="Both")
+
+aggData <- function(sims, sim_num, m_=m){
+    MXDeath %>% select(age_group_id, age_time, age_end) %>%
+        mutate(ldeaths=sapply(age_end, function(a) sum(sims < a))) %>%
+        mutate(deaths=ldeaths-lag(ldeaths)) %>%
+        mutate(deaths=ifelse(is.na(deaths), ldeaths, deaths)) %>%
+        mutate(pop_size=m_-lag(ldeaths)) %>%
+        mutate(pop_size=ifelse(is.na(pop_size), m_, pop_size)) %>%
+        mutate(px=deaths/pop_size, qx=1-px) %>%
+        mutate(hx=1-(qx^(1/age_time))) %>%
+        mutate(Sx=cumprod(qx), Fx=1-Sx) %>%
+        mutate(simulation=sim_num)
+}
+
+simDF <- bind_rows(lapply(1:n, function(i) aggData(simDeaths[[i]], i)))
+
+simDF %>% filter(age_end < 110 & hx != 0) %>%
+    ggplot(aes(x=age_end, y=hx, color=simulation, group=simulation)) +
+    scale_color_continuous(name="Simulation") +
+    geom_line(alpha=.3) +
+    geom_line(aes(x=age_end, y=hx, group=1), data=filter(MXDeath, age_end < 110), color="red") +
+    coord_trans(y="log") +
+    theme_classic() +
+    labs(title="Non-Parametric Simulated Instantaneous Hazard", x="Age", y="Hazard")
+```
+
+The downside to this non-Parametric approach is that the pattern is difficult to contextualize and compare to other distributions except by way of simulating results and summarizing the distribution using estimates of quantities such as life expectancy and$~_5q_0$. In addition the speed of simulations is relatively slow compared to other simulation methods. Even using 6 independent cores to simulate 100 separate populations of 10,000 individuals each takes around 135 seconds. This is because simulations are created by simulating data from a random uniform distribution first and then using an optimizer to solve what the age is that corresponds to that probability. Other methods have been tested, such as rejection sampling, however further testing in optimizing this process should be conducted.
+
+## Simulating data from Parametric Models
+
+In addition to providing methods for non Parametric simulation the `DemographicSimulation` package also allows for parametric simulation which follows a pseudo skewed Normal distribution. The approximate density of the distribution is as follows.
+
+$$
+p \frac{\beta^\alpha}{\Gamma (\alpha)}x^{\alpha - 1}e^{-\beta x} +
+(1-p) \frac{2}{\sqrt{\omega 2 \pi}} e^{-\frac{(x-\xi)^2}{2 \omega^2}}
+\int_{- \infty}^{\rho \frac{x - \xi}{\omega}} e^{-\frac{t^2}{2}} dt
+$$
+
+Which is a mixture distribution of a gamma and skew normal distribution where child mortality, that is mortality under the age of 5, is estimated using the gamma portion of the distribution and the skew normal estimates the probability of “adult” death which is almost always negatively skewed. I say that this distribution is the approximate distribution because there is a non zero chance for parametrizations of this distribution to produce values below zero however in the application of this software I censure such simulated data and resample from the distribution until valid time of death data is achieved. It should be noted that this fitting of data makes some strong assumptions about how the distribution of data looks. It is unable to capture well known phenomena such as the increased mortality at middle ages due to HIV related events or excess young adult male mortality phenomena observed in many countries however the process allows the distribution to be distilled to a few parameters which can can be directly compared, simulated from, and potentially forecasted. Below is a set of code used to simulate mortality data using the parametric model.
+
+```{R paramSim}
+MX2016sim <- paramFitFunc(location_="Mexico", year_=1980, sex_="Both")
+
+
+system.time(simDeaths <- lapply(1:n, function(y) MX2016sim(m)))
+
+# distribution of age at death for simulated population
+data.frame(Age=simDeaths[[1]]) %>%
+    ggplot(aes(x=Age)) +
+    geom_density() +
+    theme_classic() +
+    labs(y="Density", title="Distribution of Simulated Deaths: Parametric")
+
+MXDeath <- DFDeath %>%
+    filter(location=="Mexico" & year==1980 & sex=="Both")
+
+aggData <- function(sims, sim_num, m_=m){
+    MXDeath %>% select(age_group_id, age_time, age_end) %>%
+        mutate(ldeaths=sapply(age_end, function(a) sum(sims < a))) %>%
+        mutate(deaths=ldeaths-lag(ldeaths)) %>%
+        mutate(deaths=ifelse(is.na(deaths), ldeaths, deaths)) %>%
+        mutate(pop_size=m_-lag(ldeaths)) %>%
+        mutate(pop_size=ifelse(is.na(pop_size), m_, pop_size)) %>%
+        mutate(px=deaths/pop_size, qx=1-px) %>%
+        mutate(hx=1-(qx^(1/age_time))) %>%
+        mutate(Sx=cumprod(qx), Fx=1-Sx) %>%
+        mutate(simulation=sim_num)
+}
+
+simDF <- bind_rows(lapply(1:n, function(i) aggData(simDeaths[[i]], i)))
+
+simDF %>% filter(age_end < 110 & hx != 0) %>%
+    ggplot(aes(x=age_end, y=hx, color=simulation, group=simulation)) +
+    geom_line(alpha=.3) +
+    geom_line(aes(x=age_end, y=hx, group=1),
+              data=filter(MXDeath, age_end < 110), color="red") +
+    coord_trans(y="log") +
+    labs(title="Parametric Simulated Instantaneous Hazard",
+         x="Age", y="Hazard")
+```
+
+As we can see the distribution is indeed bimodal as in the non-Parametric case however when we observe our results in relation to the hazard function as calculated from the data vs the simulation we miss the true hazard rate by some margin, especially for the young adult group. A huge benefit to this method, however, is the huge reduction of time of computation to simulate data, for the same number of simulations we have a reduction in time from 135 seconds to around a tenth of a second, because of the well defined probability density function presented above. 
+
+## Conclusion
+I have presented a new package for simulating mortality data in the statistical software and  programming language `R` using the newly created `DemographicSimulation` package. Data can either be simulated by using country reference values of Survival rates for a particular year or by providing your own data on age and survival rates corresponding to that age. This package can provide the tools to create simulated populations to test methodological approaches for mortality estimation and forecasting. 
+
+## References 
+1) Scherbov, Sergei, Ediev, Dalkhat. Significance of life table estimates for small populations: Simulation-based study of standard errors. Demographic Research. 2011.
+2) Arato et al. Forecasting and Simulating Mortality Tables. Mathematical and Computer Modelling. 2008. 
+3) MacLeur, J., Neel, J., Chagnon, N. Demographic Structure of a Primitive Population: A Simulation. American Journal of Physical Anthropology. 1970. 
+4) Wachter, Kennith. Essential Demographic Methods Harvard University Press 2014
+5) Haidong et al. Global, regional, and national age-sex specific mortality for 264 causes of death, 1980–2016: a systematic analysis for the Global Burden of Disease Study 2016. The Lancet 2017.

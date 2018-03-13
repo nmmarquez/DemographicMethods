@@ -1,0 +1,69 @@
+---
+title: "Essential Demography HW 3 Questions"
+author: "Neal Marquez"
+date: "January 29, 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{R Load, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(pander)
+```
+
+1. Mortality for contemporary cohorts varies considerably across the globe.
+
+  a. For Kenyan children born in 2005, 1q0 = 0.053112 and 4q1 = 0.026376. What is 5q0?
+    
+```{R}
+cat(1-((1 - 0.053112) * (1-0.026376)))
+```
+
+  b. For Chilean girls born in 2000, 1q0 = 0.008941, 4q1 = 0.001832 and survivorship to age 10 is $\ell_{10}$ = 0.984178. What is 5q5?
+
+```{R}
+cat(1 - ((0.984178)/((1 - 0.008941) * (1-0.001832))))
+```
+
+  c. For Taiwanese young women born in 1978, 5q25 = 0.024740. What is the value of 1q27?
+    
+$$
+~_1q_x = 1 - (1-~_nq_x)^{1/n}
+$$
+```{R}
+cat(1 - (1-0.024740)^(1/5))
+```
+
+2.For the cohort of Russian men who were born in 1930, reaching age 35 in 1965, 5q35 = 0.027857 and 5q40 = 0.041386. For the later cohort born in 1960, 5q35 = 0.04049 and 5q40 = 0.064856. Estimate 2q39 for each of the two cohorts. It is unusual to see mortality worsen in a developed country, as it has in Russia since the breakup of the Soviet Union.
+
+```{R}
+q1930 <- 1-((1-0.027857)^(1/5) * (1-0.041386)^(1/5))
+q1960 <- 1-((1-0.04049)^(1/5) * (1-0.064856)^(1/5))
+
+cat(paste0("Cohort 1930 has a 2q39 of ", round(q1930, 6), "\n"))
+cat(paste0("Cohort 1965 has a 2q39 of ", round(q1960, 6)))
+```
+
+3. Consider a cohort of people that are approaching retirement age and beyond. The $\ell_x$ column is reported in the table below. The radix is unity, and $T_{80}$ is 4.530 years. Please fill in all the entries in a life table (beyond age 50) for these people that you can.
+
+```{R}
+data.frame(ages=c(seq(50, 65, 5), 80), 
+           lx=c(.8888, .8640, .8248, .7651, .4554),
+           n=c(5, 5, 5, 15, NA)) %>%
+    mutate(nax=ifelse(!is.na(n), n/2, 5)) %>%
+    mutate(nqx=ifelse(!is.na(lead(lx)), 1-(lead(lx) / lx), 1)) %>%
+    mutate(ndx=ifelse(!is.na(lead(lx)), lx-lead(lx), lx)) %>%
+    mutate(nLx=ifelse(!is.na(n), n*lead(lx) + nax*ndx, 4.530)) %>%
+    mutate(nmx=ndx/nLx) %>%
+    mutate(Tx=rev(cumsum(rev(nLx)))) %>%
+    mutate(ex=Tx/lx, eplusx=ex+ages) %>%
+    select(-n) %>% pander
+```
+
+4. Please read the paper titled “The cohort as a concept in the study of social change” by Ryder (1965). Briefly summarize (max 250 words) the key points of the paper and your reactions to them.
+
+In Cohorts and Social Change Norman B Ryder argues that the stimulus for social changes is events that occured and had a profound and differential effect on cohorts of people, cohorts being loosely defined as groups of people who were born around the same age, that would later cause them to act in a collective manner to invoke social change. Taking this paper in the context of the year that it was written, this approach is different from researchers who often used temporal data to bolster their theories of social change, calling on theoretical arguments such as historical contingency and inertia of disinvestment, are even more commonly relying on cross sectional data which has no temporal component. 
+
+The study of demography, as shown in this weeks assignment, has an an inherent temporal cohort component to it for which Ryder uses in his argument on the importance of understanding how cohorts age and  eventually change their political surroundings. While I do believe that this is very true one struggle that I have had with theoretical, and statistical, models that emphasize cohorts is their ability to distinguish what is a cohort effect and what may be a temporal effect. This debate is common in Age-Period-Cohort models, and being able to derive causal effects from the APC model, has not been well answered. Nevertheless, the construct of the cohort is hard to ignore as it seems to have very real effects on how society is structured.

@@ -1,0 +1,49 @@
+---
+title: "Essential Demography HW 2 Questions"
+author: "Neal Marquez"
+date: "January 22, 2018"
+output: html_document
+---
+
+```{R Load}
+library(dplyr)
+library(ggplot2)
+```
+
+1. At mid-year 2012 Brazil, Pakistan, and Nigeria had similar total populations, 194, 188, and 170 million, respectively. Growth rates were 0.011, 0.021, and 0.024 per year. Suppose growth continues at these rates for at least 8 years. Use the exponential model to project populations for these three countries in 2020. Would their rankings change?
+
+```{R Question1}
+data.frame(
+    Year=rep(2012:2020, 3), 
+    Country=rep(c("Brazil", "Pakistan", "Nigeria"), each=9),
+    R=rep(c(.011, .021, .024), each=9),
+    K0=rep(c(194, 188, 170) * 10^6, each=9)) %>%
+    mutate(t=Year-2012, Kt=exp(R*t) * K0) %>%
+    ggplot(aes(x=Year, y=Kt/10^6, color=Country, group=Country)) +
+    geom_line() + labs(y="K(t)[in miilions]")
+```
+
+Given the values of $K(0)$ and the growth rates $R$ we see that from the years 2012 to 2020 Pakistan will pass Brazil in population size if we assume an exponential growth model. 
+
+2. 1: $K(t) = \text{exp}((f/g)(\text{exp}(gt) − 1))$. Find a formula for the growth rate R as a function of $K(t)$. Describe how the growth rate behaves as time increases.
+
+We can find the slope of the function which is the growth rate by taking the derivative of the function.
+
+$$
+\begin{align*}
+K & = \text{exp}((f/g)(\text{exp}(gt) − 1)) \\
+\frac{dK}{dt} & = \text{exp}((f/g)(\text{exp}(gt) − 1)) \times 
+    \frac{d}{dt} \Big[ (f/g)(\text{exp}(gt) − 1) \Big] \\
+& = \text{exp}((f/g)(\text{exp}(gt) − 1)) \times 
+    \frac{f}{g}(\frac{d}{dt} [\exp(gt)]) \\
+& = \text{exp}((f/g)(\text{exp}(gt) − 1)) \times 
+    \frac{f}{g}(\exp(gt) \frac{d}{dt} [gt]) \\
+& = f \text{exp}(\frac{f(\text{exp}(gt) - 1)}{g} + gt)
+\end{align*}
+$$
+
+This means that as t increases we should see double eponential growth, and that this population is growing extremly rapidly. 
+
+3. The number of redwood trees in a certain triangular valley along the Jedediah Smith River is believed to have changed very little over the last thousand centuries. The expectation of life of trees that survive to the age of 10 is a further lifespan of 500 years. Trees about age 10 can be recognized because they are about as tall as a human adult. Suppose there are 2,000 trees in the valley as tall or taller than human adults. How many 10-year-old trees should you expect to find in the forest?
+
+If we know that all the 2000 observed trees are greater than or equal to 10 years old and we anticpiate on average that trees at ten years of age onaverage live to 500 years than we can divide the 2000 trees by the number of years of possible ages of the trees, which is 491, in order to get a rough estimate of the number of 10 year old trees that we expect to find which should be approximately $4.0733$.

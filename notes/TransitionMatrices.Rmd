@@ -1,0 +1,149 @@
+---
+title: "Transition Matrices"
+author: "Neal Marquez"
+date: "February 6, 2018"
+output: html_document
+---
+
+## Transition Matrices
+
+Consider a finite set of states  
+ - Single  
+ - Married  
+ - Widowed  
+ - Divorced  
+ - Dead  
+ 
+Each of these states can transition to other states (except death which is an absorbing state), but not all states can transition to other states and states can remain the same depending on when states are observed. NOte that single is a source state as every one starts as single in the process. These transitions are natural for a matrix, like a transition probability matrix(TPM).
+
+```{R warning=FALSE, message=FALSE}
+library(expm)
+states <- c("single", "married", "widowed", "divorced", "dead")
+nstates <- length(states)
+tpm <- matrix(NA, nstates, nstates, dimnames =list(states, states))
+tpm["dead",] <- 0 # dead cant go to any other states
+tpm["dead", "dead"] <- 1 # except for dead its always dead
+tpm[,"single"] <- 0 # single cant be a recieving state
+tpm["single", "single"] <- NA # except if you were already single
+tpm["single", "widowed"] <- 0
+tpm["single", "divorced"] <- 0
+tpm["widowed", "divorced"] <- 0
+tpm["divorced", "widowed"] <- 0
+tpm
+```
+
+Note that when using the TPM we assume that change is constant over time which may be a false assumption depending on the situation. If we can make this assumption you can image a starting scenario where 
+
+$$
+K(0) = [ K_{\text{single}}(0), K_{\text{married}}(0), K_{\text{widowed}}(0),
+          K_{\text{divorced}}(0), K_{\text{dead}}(0) ] \\
+K(1) = A \cdot K(0) \\
+K(2) = A \cdot K(1) = A^2 \cdot K(0) \\
+K(3) = A^3 \cdot K(0) \\
+\vdots \\
+K(t) = A^t \cdot K(0) \\
+$$
+
+Recall that this looks a lot like the geometric growth model for populations.
+
+$$
+K(t) = (1+R)^t \cdot K(0)
+$$
+
+## Leslie Matrices for Population Projections by Age
+
+Consider age groups of females who both age and contribute to the population via birth.
+
+```{R}
+ages <- c("0-5", "5-10", "10-15", "15-20", "20-25", "25-30")
+nages <- length(ages)
+
+tpm_age <- matrix(NA, nages, nages, dimnames=list(ages, ages))
+tpm_age["0-5", "5-10"] <- "Aged to 5-10"
+tpm_age["5-10", "10-15"] <- "Aged to 10-15"
+tpm_age["10-15", "15-20"] <- "Aged to 15-20"
+tpm_age["15-20", "20-25"] <- "Aged to 20-25"
+tpm_age["20-25", "25-30"] <- "Aged to 25-30"
+tpm_age["10-15", "0-5"] <- "Births From 10-15 yo"
+tpm_age["15-20", "0-5"] <- "Births From 15-20 yo"
+tpm_age["20-25", "0-5"] <- "Births From 20-25 yo"
+tpm_age["25-30", "0-5"] <- "Births From 25-30 yo"
+tpm_age %>% pander
+```
+
+Note that elements on the off diagonal are given by $\frac{~_nL_{x+n}}{~_nL_x}$ where $x$ is the start age group and $x+n$ is the end age group. 
+
+The Elements in the first row are given by various process depending on the level of sophistication
+
+#### Basic Model
+$$
+n~_nF_x f_{fab}
+$$
+
+#### Accounting for Daughter Deaths
+$$
+\frac{~_nL_0}{l_x}~_nF_x f_{fab}
+$$
+
+#### Accounting for Aging of Potential Mothers
+$$
+\frac{~_nL_0}{l_x}\frac{~_nF_x + ~_nF_{x+n}}{2} f_{fab}
+$$
+
+
+#### Accounting for Survivorship of Potential Mothers
+$$
+\frac{~_nL_0}{l_x}\frac{~_nF_x + ~_nF_{x+n}\frac{~_nL_{x+n}}{~_nL_{x}}}{2} f_{fab}
+$$
+
+To illustrate a working leslie matrix and how to make projections lets consider a 3x3 matrix for a population of horses.
+
+```{R horse_example}
+F_5_0 <- 0
+F_5_5_fab <- .4
+F_10_5_fab <- .3
+l0 <- 1
+l5 <- .9
+l10 <- .5
+
+DFhorse <- data.frame(
+    ages=c("0to5", "5to10", "10to15"),
+    nFx_fab=c(0, .4, .3),
+    lx=c(1, .9, .6)) %>%
+    mutate(nLx=ifelse(!is.na(lead(lx)), 5/2 * (lead(lx) + lx), 5/2*lx)) %>%
+    mutate(a_diag=lead(nLx)/nLx) %>%
+    mutate(top_row=ifelse(
+        !is.na(lead(nLx)),
+        first(nLx)/first(lx)/2 * (nFx_fab + lead(nFx_fab) * (lead(nLx)/nLx)),
+        first(nLx)/first(lx)/2 * (nFx_fab)))
+
+DFhorse %>% pander
+
+```
+
+### Use this infor for the TPM
+
+```{R}
+tpm_horse <- matrix(0, 3, 3)
+tpm_horse[1,] <- DFhorse$top_row
+tpm_horse[2,1] <- DFhorse$a_diag[1]
+tpm_horse[3,2] <- DFhorse$a_diag[2]
+tpm_horse
+
+start_pop <- c(8, 10, 7)
+c(tpm_horse %*% start_pop) # next year
+c(tpm_horse%^%5 %*% start_pop) # 5 years in the future
+```
+
+### Another way to consider the top row
+
+$$
+a_{1, 5(x)} = \frac{~_nL_0 f_{fab}}{2 l_0} 
+    \frac{~_nF_x ~_nL_x + ~_nF_{x+n} ~_nL_{x+n}}{~_nL_x} \\
+a_{1, 5(x)} \frac{~_nL_x}{~_nL_0}    = \frac{f_{fab}}{2 l_0}
+    (~_nF_x ~_nL_x + ~_nF_{x+n} ~_nL_{x+n}) \\
+\sum a_{1, 5(x)} \frac{~_nL_x}{~_nL_0} = 
+    \underbrace{\frac{\sum ~_nF_x ~_nL_x}{l_0}}_{\text{NRR}}
+$$
+
+This means taht we can get the NRR straight from the Leslie matrix by multiplying across the off diagonal.

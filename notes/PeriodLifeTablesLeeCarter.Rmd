@@ -1,0 +1,72 @@
+---
+title: "Period Life Tables, Brass Relational Model, and Lee Carter"
+author: "Neal Marquez"
+date: "February 26, 2018"
+output: html_document
+---
+
+## Estimating Period Mortality  
+ - All the concepts that we applied to cohort fertility can be applied to cohort mortality  
+ - Convert$~_nM_x$, which is equal to$~_nm_x$, to$~_nq_x$  
+ - Recall that$~_nq_x = \frac{~_nd_x}{\ell_x}$  
+ - $~_nL_x = n \ell_{x+m} +~_na_x~_nd_x$  
+ - $~_nL_x = n (\ell_{x}-~_nd_x) +~_na_x~_nd_x$  
+ - $~_nL_x = n\ell_{x}-(n-~_na_x)~_nd_x$  
+ - $n\ell_{x} = ~_nL_x + (n-~_na_x)~_nd_x$  
+ - $n\ell_{x} = \frac{1}{m}(~_nL_x + (n-~_na_x)~_nd_x)$  
+ - $~_nq_x = \frac{~_nd_x}{\ell_x} = \frac{~_nd_x}{\frac{1}{m}(~_nL_x + (n-~_na_x)~_nd_x)}$  
+ - $~_nq_x = \frac{\frac{n~_nd_x}{~_nL_x}}{\frac{~_nL_x}{~_nL_x} + (n-~_na_x)\frac{~_nd_x}{~_nL_x}}$  
+ - $~_nq_x = \frac{n ~_nm_x}{1 + (n-~_na_x)~_nm_x}$  
+
+### Choosing$~_na_x$  
+ - For most age groups choosing$~_na_x$ is trivial  
+ - We use the midway point of this group to the next  
+ - From the youngest age groups this is not true, tend to die earlier in the cycle  
+     - $~_1a_0 = .007 + 1.7 ~_1m_0$  
+     - $~_4a_1 = 1.5$  
+     - Based off of past emprical evidence  
+ - Also need to worry about the open ended interval  
+     - $~_{\infty}a_x = \frac{1}{~_nm_x}$  
+     - The assumption is that$~_nm_x$ is constant in the interval  
+     - eg if$~_nm_x \approx .2$  
+     - $~_{\infty}a_{95} = \frac{1}{~_nm_x} = \frac{1}{.2} = 5$ years  
+     
+### Choosing$~_nLx$ for the open interval  
+ - $~_nL_x = n \underbrace{\ell_{x+n}}_{0} + ~_na_x \underbrace{~_nd_x}_{\ell_x}$  
+ - $~_nL_x = \frac{\ell_x}{~_nm_x}$
+ 
+## Brass Relational Model: Model Life Tables  
+ - $\ell_x = \frac{1}{1 + \text{exp}(-2\alpha -2\beta y_x)}$  
+ - $\alpha$ and $\beta$ are parameters to estimate  
+ - $y_x$ are spines (age specific constants)  
+ - $\alpha$ changes the level of the survivorship curve  
+ - $\beta$ changes the shape of the curve  
+ - $\ell_x = \frac{1}{1 + \text{exp}(-2\alpha -2\beta y_x)}$  
+ - $\frac{1}{\ell_x} = 1 + \text{exp}(-2\alpha -2\beta y_x)$  
+ - $\frac{1}{\ell_x} -1 = \text{exp}(-2\alpha -2\beta y_x)$  
+ - $\frac{1-\ell_x}{\ell_x} = \text{exp}(-2\alpha -2\beta y_x)$  
+ - $\text{log}(1-\ell_x) - \text{log}(\ell_x) = -2\alpha -2\beta y_x$  
+ - $\text{log}(\ell_x) - \text{log}(1-\ell_x) = 2\alpha + 2\beta y_x$  
+ - $\text{log}(\frac{\ell_x}{1-\ell_x}) = 2\alpha + 2\beta y_x$  
+ - $\frac{1}{2}\text{log}(\frac{\ell_x}{1-\ell_x}) = \alpha + \beta y_x$  
+ - We then estimate $\alpha$ and $\beta$ using an OLS approach  
+ 
+### Brass Standards  
+ - If we set $\alpha$ to 0 and $\beta$ to 1.
+ - We get the same life table.  
+     - Recall that $\beta$ is positively constrained  
+     
+## Lee Carter Model for Forecasting Mortality  
+ - $\text{log}(m_{x,t}) = \alpha_x + \beta_x k_t + \epsilon_{x,t}$  
+ - Usually we organize our data into a big matrix with ages in rows and times in columns  
+ - Notice that if $\alpha_x$, $\beta_x$, and $k_t$ are solutions then  
+     - $\alpha_x$, $\beta_x c$, and $k_t c^{-1}$ are also solutions  
+     - $\alpha_x - \beta_x c$, $\beta_x$, and $k_t + c$ are also solutions  
+ - We can get around this by 
+     - Applying a strictly positive sum to one constarint for $\beta_x$  
+     - Applying a sum to zero constarint for $k_t$  
+ - This is convienient because the solution then is  
+     - $\alpha_x$ is $\frac{1}{n} \sum log(m_{xt})$  
+     - $log(m_{x,t}) - \frac{1}{n} \sum log(m_{xt}) = \beta_x k_t + \epsilon_{x,t}$  
+ - Estimate $\beta_x$ and $k_t$ using SVD  
+     - $X = UDV^T$

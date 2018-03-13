@@ -1,0 +1,141 @@
+---
+title: "Essential Demography HW 6 Questions"
+author: "Neal Marquez"
+date: "February 26, 2018"
+output:
+  html_document: default
+---
+
+```{R Load, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(pander)
+library(expm)
+```
+
+
+1. Calculate the period NRR, TFR, GRR, and synthetic cohort mean age at childbearing $\mu$ from data from the African country of Togo in 1961 from Keyfitz and Flieger (1968). It is rare to have such data from Africa from the 1960s, epitomizing high mortality and fertility decline. The period lifetable radix is 100000 the total female population is 813295 and 41315 babies in 1961 were boys and 42855 were girls. 
+
+```{R TogoFertility}
+DFTogo <- data.frame(x=seq(15, 45, 5)) %>%
+    mutate(nBx=c(7150, 21910, 25305, 14825, 9935, 3625, 1420)) %>%
+    mutate(nDx=c(578, 502, 1034, 659, 638, 441, 638)) %>%
+    mutate(nKx=c(48564, 67096, 80746, 53670, 51975, 32022, 32307)) %>%
+    mutate(nLx=c(337775, 321570, 306003, 287031, 270049, 253276, 232925)) %>%
+    mutate(nFx=nBx/nKx, nMx=nDx/nKx)
+
+ffab <- 42855 / (42855 + 41315)
+NRRTogo <- (sum(DFTogo$nFx * DFTogo$nLx) / 100000) * ffab
+mu_  <- with(DFTogo, sum(nFx * nLx * (x + 2.5)) / sum(nFx * nLx))
+TFR <- with(DFTogo, sum(nFx * 5))
+GRR <- TFR * ffab
+```
+
+We will use the following equations to calculate the Period values  
+
+$$
+\text{NRR} = \sum(~_nF_x)(~_nL_x)(f_{\text{fab}})/\ell_0 \\
+\text{TFR} = \sum(~_nF_x)(n) \\
+\text{GRR} = \sum(~_nF_x)(n)(f_{\text{fab}}) \\
+\mu = \frac{\sum (~_nF_x)(~_nL_x)(x + 2.5)}{\sum (~_nF_x)(~_nL_x)} 
+$$
+
+From these calculations we get the following values 
+
+```{R echo=FALSE}
+data.frame(Parameter=c("NRR", "TFR", "GRR", "mu")) %>%
+    mutate(Value=round(c(NRRTogo, TFR, GRR, mu_), 4)) %>%
+    pander
+```
+
+2. Period age-specific death rates for women from Togo in 1961 in broad age groups include$~_5M_0$ = 0.063014,$~_{10}M_5$ = 0.007884,$~_{35}M_{15}$ = 0.012225, and $~_{\infty}M_{50}$ = 0.046653. Taking the world population counts for the year 2000 from Table 6.3 as a standard, calculate an age standardized death rate for women in Togo in 1961 (ignoring men).
+
+```{R TogoASMR}
+DFStandard <- data.frame(x=c(0, 15, 50), n=c(15, 35, Inf)) %>%
+    mutate(nKx=c(882, sum(c(270, 248, 245, 232, 209, 182, 164)), 574))
+
+DFTogoASFR <- data.frame(x=c(0, 15, 50), n=c(15, 35, Inf)) %>%
+    mutate(nMx=c(mean(c(0.063014, 0.007884, 0.007884)), 0.012225, 0.046653)) %>%
+    left_join(DFStandard, by=c("x", "n"))
+
+AgeStandardizedMortalityRate <- with(DFTogoASFR, sum(nKx * nMx)/sum(nKx))
+```
+
+Because we are given the Age specific mortality for age groups that do not match up with the table in the standardized age group we have to combine the observed values of Togos under 15 mortality from the two values of age specific mortality that we have$~_5M_0$ and$~_{10}M_5$ assuming that the conribution from the second age group is twice as much as the first age group because of the larger age range that it accounts for. When we do so we can aggregate the values in the standardized table and get an Age standardized mortality rate of `r round(AgeStandardizedMortalityRate, 6)`.
+
+3. Period TFR’s in France were 1.746 in 1995 to 2000, 1.878 in 2000 to 2005, and 1.968 in 2005 to 2010 according to the HFD. Average ages at childbirth based on period$~_nF_x$ values were A(1995) = 28.98, A(2000) = 29.38, A(2005) = 29.71, and A(2010) = 30.03. Compute values of $\text{TFR}^{\text{(s)}}$ standardized for birth age for each period and compare these tempo-adjusted values to the original period TFR’s.
+
+```{R Tempo}
+data.frame(Year=seq(1995, 2010, 5), TFR=c(1.746, 1.878, 1.968, NA)) %>%
+    mutate(A=c(28.98, 29.38, 29.71, 30.03)) %>%
+    mutate(TFRs=TFR / (1 - (lead(A) - A)/5)) %>%
+    mutate(TFRper=TFRs/TFR - 1) %>%
+    filter(Year < 2010) %>%
+    pander
+```
+
+When we adjust for the postponment of births to later ages the values of $\text{TFR}^{\text{(s)}}$, shown in the 4th column, increases from raw TFR between 6 and 9 percent in each of the observed years.
+
+4. Please describe your plan for the term project. Include a brief rationale for why you chose to work on the specific project (e.g., what you expect to learn, whether it may be useful for your ongoing research, whether you want to create a tool that would be useful for you in the future, …). Explain what you have already done and what you plan to do next.
+
+I plan on creating an `R` package for continous demographic mortality simulations. Currently in the CRAN ecosphere there are several packages for estimating and simulating age specfic mortality however in order to test the biases that may occur from aggregating dating in numerous ways it ay be best to first simulate data on a continous scale. The package will alow for various parametric and non parametric fits to observed failure rates, or the Cumulative distribution Function (CDF). In order to give baselines to users to simulate from, data from 30 countries mortality rates and life table qunatities, such as$~_np_x$ and $S(x)$ estimated from the Global Burdern of Disease Project 2016, will be included for baseline simulations. The goal is to have a package where you can either pass a series of ages and the CDF for mortality associatied with those ages and simulate a set of values which indicate the age which a simulated individual has died, using either parametric or non-parametric methods. Alternatively one can also specify a country and year to base simulation rates from and get simulations that are based off the GBD estimated values of moratlity parameters. Currently non parameteric spline models and a simple bimodal distribution using gamma and skewed normal have been written to simulate data. I hope to also include the use of Quantile-Parametrized Distributions as specified in a paper by Keelin and Powley(2011). Examples of Parametric and non parametric simulations are shown below.
+
+```{R SimDemo}
+# devtools::install_github("nmmarquez/DemographicSimulation") # to install
+library(DemographicSimulation)
+
+MX2016F <- GenPopFuncs(location_="Mexico", year_=1980, sex_="Both")
+m <- 10000
+system.time(simDeaths <- lapply(1:100, function(y) MX2016F$simPop(m, 6)))
+
+data.frame(Deaths=c(unlist(simDeaths))[1:(9*m)]) %>%
+    mutate(Simulation=rep(1:9, each=m)) %>%
+    ggplot(aes(x=Deaths)) + 
+    geom_density() + 
+    facet_wrap(~Simulation) + 
+    labs(y="Density", title="First 9 Non-Parametric Simulations of Age at Death")
+
+MXDeath <- DFDeath %>%
+    filter(location=="Mexico" & year==1980 & sex=="Both")
+
+aggData <- function(sims, sim_num, m_=m){
+    MXDeath %>% select(age_group_id, age_time, age_end) %>%
+        mutate(ldeaths=sapply(age_end, function(a) sum(sims < a))) %>%
+        mutate(deaths=ldeaths-lag(ldeaths)) %>%
+        mutate(deaths=ifelse(is.na(deaths), ldeaths, deaths)) %>%
+        mutate(pop_size=m_-lag(ldeaths)) %>%
+        mutate(pop_size=ifelse(is.na(pop_size), m_, pop_size)) %>%
+        mutate(px=deaths/pop_size, qx=1-px) %>%
+        mutate(hx=1-(qx^(1/age_time))) %>% 
+        mutate(Sx=cumprod(qx), Fx=1-Sx) %>%
+        mutate(simulation=sim_num)
+}
+
+simDF <- bind_rows(lapply(1:100, function(i) aggData(simDeaths[[i]], i))) 
+
+simDF %>% filter(age_end < 115 & hx != 0) %>%
+    ggplot(aes(x=age_end, y=hx, color=simulation, group=simulation)) + 
+    geom_line(alpha=.3) + 
+    geom_line(aes(x=age_end, y=hx, group=1), data=MXDeath, color="red") + 
+    coord_trans(y="log") + 
+    labs(title="Non-Parametric Simulated Instantaneous Hazard", x="Age", y="Hazard")
+
+MX2016sim <- paramFitFunc(location_="Mexico", year_=1980, sex_="Both")
+system.time(simDeaths <- lapply(1:100, function(y) MX2016sim(m)))
+
+data.frame(Deaths=c(unlist(simDeaths))[1:(9*m)]) %>%
+    mutate(Simulation=rep(1:9, each=m)) %>%
+    ggplot(aes(x=Deaths)) + 
+    geom_density() + 
+    facet_wrap(~Simulation) + 
+    labs(y="Density", title="First 9 Parametric Simulations of Age at Death")
+
+simDF <- bind_rows(lapply(1:100, function(i) aggData(simDeaths[[i]], i))) 
+
+simDF %>% filter(age_end < 115 & hx != 0) %>%
+    ggplot(aes(x=age_end, y=hx, color=simulation, group=simulation)) + 
+    geom_line(alpha=.3) + 
+    geom_line(aes(x=age_end, y=hx, group=1), data=MXDeath, color="red") + 
+    coord_trans(y="log") + 
+    labs(title="Parametric Simulated Instantaneous Hazard", x="Age", y="Hazard")
+```
